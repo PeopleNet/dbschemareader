@@ -68,7 +68,7 @@ namespace DatabaseSchemaReader.CodeGen
             {
                 var tableOrView = _table is DatabaseView ? "view" : "table";
                 var comment = "Class representing " + _table.Name + " " + tableOrView;
-                var classDefinition = "public class " + className;
+                var classDefinition = $"public class {className}: IEntity<{className}>";
                 if (_inheritanceTable != null)
                 {
                     classDefinition += " : " + _inheritanceTable.NetName;
@@ -156,7 +156,7 @@ namespace DatabaseSchemaReader.CodeGen
         private void WriteGetList(string className)
         {
             _cb.AppendLine("");
-            using (_cb.BeginNest($"public static IEnumerable<{className}> GetList(Dictionary<string, object> filter)"))
+            using (_cb.BeginNest($"public static IEnumerable<{className}> GetList(IReadOnlyDictionary<string, object> filter)"))
             {
                 _cb.AppendLine($"var sqlQuery = $\"SELECT * FROM \\\"{_table.Name}\\\";\";");
                 using (_cb.BeginNest("if (filter != null && filter.Count < 1)"))
@@ -175,12 +175,18 @@ namespace DatabaseSchemaReader.CodeGen
                 _cb.AppendLine("");
                 _cb.AppendLine("return entities;");
             }
+
+            _cb.AppendLine("");
+            using (_cb.BeginNest($"public IEnumerable<{className}> GetList(IReadOnlyDictionary<string, object> filter)"))
+            {
+                _cb.AppendLine($"return {className}.GetList(filter);");
+            }
         }
 
         private void WriteGet(string className)
         {
             _cb.AppendLine("");
-            using (_cb.BeginNest($"public static {className} Get(Dictionary<string, object> filter)"))
+            using (_cb.BeginNest($"public static {className} Get(IReadOnlyDictionary<string, object> filter)"))
             {
                 using (_cb.BeginNest("if (filter == null || filter.Count < 1)"))
                 {
@@ -214,6 +220,12 @@ namespace DatabaseSchemaReader.CodeGen
                 }
 
                 _cb.AppendLine("return entity;");
+            }
+
+            _cb.AppendLine("");
+            using (_cb.BeginNest($"public {className} Get(IReadOnlyDictionary<string, object> filter)"))
+            {
+                _cb.AppendLine($"return {className}.Get(filter);");
             }
         }
 
