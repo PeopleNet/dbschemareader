@@ -93,4 +93,10 @@
     <PackageReference Include="System.CodeDom" Version="4.4.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="McMaster.Extensions.CommandLineUtils">
+      <HintPath>..\..\..\..\.nuget\packages\mcmaster.extensions.commandlineutils\2.2.2\lib\netstandard2.0\McMaster.Extensions.CommandLineUtils.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>
