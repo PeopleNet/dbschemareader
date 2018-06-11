@@ -10,11 +10,12 @@ using DatabaseSchemaReader.DataSchema;
 namespace DatabaseSchemaReader.CodeGen
 {
     using System.Collections.Generic;
+    using System.Threading.Tasks;
 
     /// <summary>
     /// A *simple* code generation
     /// </summary>
-    public class CodeWriter
+    public class CodeWriter : IWriter
     {
         private readonly DatabaseSchema schema;
 
@@ -36,6 +37,7 @@ namespace DatabaseSchemaReader.CodeGen
             this.schema = schema;
             this.codeWriterSettings = codeWriterSettings;
 
+
             var vs2010 = this.codeWriterSettings.WriteProjectFile;
             var vs2015 = this.codeWriterSettings.WriteProjectFileNet46;
             projectVersion = vs2015 ? ProjectVersion.Vs2015 : vs2010 ? ProjectVersion.Vs2010 : ProjectVersion.Vs2008;
@@ -54,16 +56,16 @@ namespace DatabaseSchemaReader.CodeGen
         /// <exception cref="IOException"/>
         /// <exception cref="UnauthorizedAccessException"/>
         /// <exception cref="System.Security.SecurityException" />
-        public void Execute(DirectoryInfo directory, IEnumerable<string> logicalDeleteColumns)
+        public async Task Execute()
         {
-            if (directory == null)
+            if (codeWriterSettings.OutputDirectory == null)
             {
                 throw new ArgumentNullException("directory");
             }
 
-            if (!directory.Exists)
+            if (!codeWriterSettings.OutputDirectory.Exists)
             {
-                throw new InvalidOperationException("Directory does not exist: " + directory.FullName);
+                throw new InvalidOperationException("Directory does not exist: " + codeWriterSettings.OutputDirectory.FullName);
             }
 
             mappingNamer = new MappingNamer();
@@ -77,7 +79,7 @@ namespace DatabaseSchemaReader.CodeGen
                     continue;
                 }
 
-                WriteClassFile(directory, dataType.NetDataType, txt);
+                WriteClassFile(codeWriterSettings.OutputDirectory, dataType.NetDataType, txt);
             }
 
             foreach (var table in schema.Tables)
@@ -88,18 +90,18 @@ namespace DatabaseSchemaReader.CodeGen
 
                 var classWriter = new ClassWriter(table, codeWriterSettings);
                 var classText = classWriter.Write();
-                WriteClassFile(directory, className, classText);
+                WriteClassFile(codeWriterSettings.OutputDirectory, className, classText);
 
                 var repositoryInterfaceWriter = new RepositoryInterfaceWriter(table, codeWriterSettings);
                 var interfaceText = repositoryInterfaceWriter.Write();
-                WriteClassFile(directory, CodeWriterUtils.GetRepositoryInterfaceName(table), interfaceText);
+                WriteClassFile(codeWriterSettings.OutputDirectory, CodeWriterUtils.GetRepositoryInterfaceName(table), interfaceText);
 
                 var repositoryImplementationWriter = new RepositoryImplementationWriter(
                     table,
                     codeWriterSettings,
-                    logicalDeleteColumns);
+                    codeWriterSettings.LogicalDeleteColumns);
                 var implementationText = repositoryImplementationWriter.Write();
-                WriteClassFile(directory, CodeWriterUtils.GetRepositoryImplementationName(table), implementationText);
+                WriteClassFile(codeWriterSettings.OutputDirectory, CodeWriterUtils.GetRepositoryImplementationName(table), implementationText);
             }
 
             if (codeWriterSettings.IncludeViews)
@@ -112,7 +114,7 @@ namespace DatabaseSchemaReader.CodeGen
                     var cw = new ClassWriter(view, codeWriterSettings);
                     var txt = cw.Write();
 
-                    WriteClassFile(directory, className, txt);
+                    WriteClassFile(codeWriterSettings.OutputDirectory, className, txt);
                 }
             }
         }

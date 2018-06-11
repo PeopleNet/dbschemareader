@@ -2,6 +2,9 @@
 
 namespace DatabaseSchemaReader.CodeGen
 {
+    using System.Collections.Generic;
+    using System.IO;
+
     /// <summary>
     /// Code generation settings. Customize the defaults.
     /// </summary>
@@ -9,16 +12,22 @@ namespace DatabaseSchemaReader.CodeGen
     {
         private INamer _namer;
 
+        public IEnumerable<string> LogicalDeleteColumns { get; set; }
+
+        public DirectoryInfo OutputDirectory { get; set; }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="CodeWriterSettings"/> class.
         /// </summary>
-        public CodeWriterSettings()
+        public CodeWriterSettings(DirectoryInfo outputDirectory, IEnumerable<string> logicalDeleteColumns)
         {
             Namespace = "Domain";
             CodeTarget = CodeTarget.Poco;
             var namer = new Namer();
             Namer = namer;
             CodeInserter = new CodeInserter();
+            OutputDirectory = outputDirectory;
+            LogicalDeleteColumns = logicalDeleteColumns;
         }
 
         /// <summary>
