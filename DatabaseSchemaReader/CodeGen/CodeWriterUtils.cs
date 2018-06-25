@@ -187,10 +187,29 @@ namespace DatabaseSchemaReader.CodeGen
             return newCombinations;
         }
 
-        public static string GetWithMethodSignature(DatabaseTable table, DatabaseConstraint foreignKey, CodeWriterSettings codeWriterSettings)
+        public static string GetWithMethodSignature(DatabaseTable table, DatabaseConstraint foreignKey, CodeWriterSettings codeWriterSettings, IEnumerable<Parameter> methodParameters)
         {
             var propertyName = codeWriterSettings.Namer.ForeignKeyName(table, foreignKey);
-            return $"virtual {table.NetName} With{propertyName}()";
+            return $"virtual {table.NetName} With{propertyName}({PrintParametersForSignature(methodParameters)})";
+        }
+
+        public static IEnumerable<Parameter> GetWithMethodParameters(DatabaseTable table, CodeWriterSettings codeWriterSettings, bool byCustomer)
+        {
+            var columns = new List<DatabaseColumn>();
+            if (byCustomer)
+            {
+                if (TableHasOrgUnitForeignKey(table))
+                {
+                    var orgUnitTable = table.DatabaseSchema.FindTableByName(CustomerAssetOrganizationTableName);
+                    columns.Add(orgUnitTable.FindColumn(CustomerIDColumnName));
+                }
+                else
+                {
+                    return new List<Parameter>();
+                }
+            }
+
+            return GetMethodParametersForColumns(columns, codeWriterSettings);
         }
 
         public static IEnumerable<DatabaseConstraint> GetWithForeignKeys(DatabaseTable table, DatabaseTable foreignKeyChild)
@@ -198,10 +217,29 @@ namespace DatabaseSchemaReader.CodeGen
             return foreignKeyChild.ForeignKeys.Where(fk => fk.ReferencedTable(table.DatabaseSchema).Name == table.Name);
         }
 
-        public static string GetWithMethodSignature(DatabaseTable table, DatabaseTable foreignKeyChild, DatabaseConstraint foreignForeignKey, CodeWriterSettings codeWriterSettings)
+        public static string GetWithMethodSignature(DatabaseTable table, DatabaseTable foreignKeyChild, DatabaseConstraint foreignForeignKey, CodeWriterSettings codeWriterSettings, IEnumerable<Parameter> methodParameters)
         {
             var propertyName = codeWriterSettings.Namer.ForeignKeyCollectionName(table.Name, foreignKeyChild, foreignForeignKey);
-            return $"virtual {table.NetName} With{propertyName}()";
+            return $"virtual {table.NetName} With{propertyName}({PrintParametersForSignature(methodParameters)})";
+        }
+
+        public static IEnumerable<Parameter> GetWithMethodParameters(DatabaseTable table, DatabaseTable foreignKeyChild, CodeWriterSettings codeWriterSettings, bool byCustomer)
+        {
+            var columns = new List<DatabaseColumn>();
+            if (byCustomer)
+            {
+                if (TableHasOrgUnitForeignKey(foreignKeyChild)) 
+                {
+                    var orgUnitTable = table.DatabaseSchema.FindTableByName(CustomerAssetOrganizationTableName);
+                    columns.Add(orgUnitTable.FindColumn(CustomerIDColumnName));
+                }
+                else
+                {
+                    return new List<Parameter>();
+                }
+            }
+
+            return GetMethodParametersForColumns(columns, codeWriterSettings);
         }
 
         public static string GetUpdateMethodSignature(DatabaseTable table, CodeWriterSettings codeWriterSettings, IEnumerable<Parameter> methodParameters)

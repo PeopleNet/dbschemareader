@@ -98,16 +98,19 @@ namespace DatabaseSchemaReader.CodeGen
             foreach (var foreignKey in table.ForeignKeys)
             {
                 WriteWith(foreignKey);
+                WriteWithByCustomer(foreignKey);
             }
 
             foreach (var foreignKey in table.ForeignKeyChildren)
             {
                 WriteWith(foreignKey);
+                WriteWithByCustomer(foreignKey);
             }
         }
 
-        public void WriteWith(DatabaseTable foreignKeyChild)
+        public void WriteWithCommon(IEnumerable<Parameter> methodParameters, DatabaseTable foreignKeyChild)
         {
+            // TODO: KE
             foreach (var fk in CodeWriterUtils.GetWithForeignKeys(table, foreignKeyChild))
             {
                 var dataType = foreignKeyChild.NetName;
@@ -156,7 +159,24 @@ namespace DatabaseSchemaReader.CodeGen
             }
         }
 
-        public void WriteWith(DatabaseConstraint foreignKey)
+        public void WriteWithByCustomer(DatabaseTable foreignKeyChild)
+        {
+            var methodParametersByCustomer = CodeWriterUtils.GetWithMethodParameters(foreignKeyChild, codeWriterSettings, true);
+            if (methodParametersByCustomer == null || !methodParametersByCustomer.Any())
+            {
+                return;
+            }
+
+            WriteWithCommon(methodParametersByCustomer, foreignKeyChild);
+        }
+
+        public void WriteWith(DatabaseTable foreignKeyChild)
+        {
+            var methodParameters = CodeWriterUtils.GetWithMethodParameters(table, foreignKeyChild, codeWriterSettings, false);
+            WriteWithCommon(methodParameters, foreignKeyChild);
+        }
+
+        public void WriteWithCommon(IEnumerable<Parameter> methodParameters, DatabaseConstraint foreignKey)
         {
             var refTable = foreignKey.ReferencedTable(table.DatabaseSchema);
             var dataType = refTable.NetName;
@@ -166,13 +186,12 @@ namespace DatabaseSchemaReader.CodeGen
                 throw new InvalidOperationException("Number of foreign key columns does not match number of columns referenced!");
             }
 
-            classBuilder.BeginNest($"public {CodeWriterUtils.GetWithMethodSignature(table, foreignKey, codeWriterSettings)}");
+            classBuilder.BeginNest($"public {CodeWriterUtils.GetWithMethodSignature(table, foreignKey, codeWriterSettings, methodParameters)}");
 
             var methodCallParameters = new List<string>
-            {
-                "DbContext"
-            };
-
+                                           {
+                                               "DbContext"
+                                           };
             var propertyName = codeWriterSettings.Namer.ForeignKeyName(table, foreignKey);
             foreach (var fkc in foreignKey.Columns)
             {
@@ -189,15 +208,33 @@ namespace DatabaseSchemaReader.CodeGen
                     classBuilder.AppendLine("");
                     parameter += ".Value";
                 }
-                
+
                 methodCallParameters.Add(parameter);
             }
 
+            methodCallParameters.AddRange(methodParameters.Select(mp => mp.Name));
             var s = string.Join(", ", methodCallParameters);
             classBuilder.AppendLine($"{propertyName} = {CodeWriterUtils.GetRepositoryImplementationName(foreignKey.ReferencedTable(table.DatabaseSchema))}.Get({s});");
             classBuilder.AppendLine("return this;");
             classBuilder.EndNest();
             classBuilder.AppendLine("");
+        }
+
+        public void WriteWithByCustomer(DatabaseConstraint foreignKey)
+        {
+            var methodParametersByCustomer = CodeWriterUtils.GetWithMethodParameters(table, codeWriterSettings, true);
+            if (methodParametersByCustomer == null || !methodParametersByCustomer.Any())
+            {
+                return;
+            }
+
+            WriteWithCommon(methodParametersByCustomer, foreignKey);
+        }
+
+        public void WriteWith(DatabaseConstraint foreignKey)
+        {
+            var methodParameters = CodeWriterUtils.GetWithMethodParameters(table, codeWriterSettings, false);
+            WriteWithCommon(methodParameters, foreignKey);
         }
 
         private void WritePrimaryKey()
