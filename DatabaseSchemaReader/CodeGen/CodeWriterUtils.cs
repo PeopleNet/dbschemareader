@@ -195,6 +195,15 @@ namespace DatabaseSchemaReader.CodeGen
 
         public static IEnumerable<Parameter> GetWithMethodParameters(DatabaseTable table, CodeWriterSettings codeWriterSettings, bool byCustomer)
         {
+            /*                var methodParameters = new List<Tuple<string, string, string>>();
+                for (var i = 0; i < fk.Columns.Count; i++)
+                {
+                    var refColumn = fk.Columns[i];
+                    var column = referencedColumns[i];
+                    var actualColumn = table.Columns.Single(tc => tc.Name == column);
+                    var dataTypeForParameter = DataTypeWriter.FindDataType(actualColumn);
+                    methodParameters.Add(new Tuple<string, string, string>(codeWriterSettings.Namer.NameToAcronym(refColumn), dataTypeForParameter, refColumn));
+                }*/
             var columns = new List<DatabaseColumn>();
             if (byCustomer)
             {

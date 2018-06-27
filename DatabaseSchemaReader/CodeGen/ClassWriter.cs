@@ -108,7 +108,7 @@ namespace DatabaseSchemaReader.CodeGen
             }
         }
 
-        public void WriteWithCommon(IEnumerable<Parameter> methodParameters, DatabaseTable foreignKeyChild)
+        public void WriteWithCommon(IEnumerable<Parameter> _methodParameters, DatabaseTable foreignKeyChild)
         {
             // TODO: KE
             foreach (var fk in CodeWriterUtils.GetWithForeignKeys(table, foreignKeyChild))
@@ -130,7 +130,7 @@ namespace DatabaseSchemaReader.CodeGen
                     methodParameters.Add(new Tuple<string, string, string>(codeWriterSettings.Namer.NameToAcronym(refColumn), dataTypeForParameter, refColumn));
                 }
 
-                classBuilder.BeginNest($"public {CodeWriterUtils.GetWithMethodSignature(table, foreignKeyChild, fk, codeWriterSettings)}");
+                classBuilder.BeginNest($"public {CodeWriterUtils.GetWithMethodSignature(table, fk, codeWriterSettings)}");
 
                 var methodCallParameters = new List<string>
                 {
