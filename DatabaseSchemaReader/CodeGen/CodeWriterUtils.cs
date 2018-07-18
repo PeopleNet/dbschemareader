@@ -313,8 +313,17 @@ namespace DatabaseSchemaReader.CodeGen
 
         public static string GetWithMethodSignature(DatabaseTable table, DatabaseTable foreignKeyChild, DatabaseConstraint foreignForeignKey, CodeWriterSettings codeWriterSettings)
         {
-            var propertyName = codeWriterSettings.Namer.ForeignKeyCollectionName(table.Name, foreignKeyChild, foreignForeignKey);
-            return $"virtual {table.NetName} With{propertyName}()";
+            if (table.IsSharedPrimaryKey(foreignKeyChild))
+            {
+                var propertyName = foreignKeyChild.Name;
+                return $"virtual {table.NetName} With{propertyName}()";
+            }
+            else
+            {
+                var propertyName =
+                    codeWriterSettings.Namer.ForeignKeyCollectionName(table.Name, foreignKeyChild, foreignForeignKey);
+                return $"virtual {table.NetName} With{propertyName}()";
+            }
         }
 
         public static string GetUpdateMethodSignature(DatabaseTable table, CodeWriterSettings codeWriterSettings, IEnumerable<Parameter> methodParameters)

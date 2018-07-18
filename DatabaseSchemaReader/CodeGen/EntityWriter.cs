@@ -146,8 +146,62 @@ namespace DatabaseSchemaReader.CodeGen
             }
         }
 
+        private void WriteWithSingle(DatabaseTable foreignKeyChild)
+        {
+            var ffks = CodeWriterUtils.GetWithForeignKeys(table, foreignKeyChild).ToList();
+            foreach (var ffk in ffks)
+            {
+                var ffkTable = table.DatabaseSchema.FindTableByName(ffk.TableName);
+                var ffkReferencedTable = ffk.ReferencedTable(table.DatabaseSchema);
+                var ffkColumns = ffk.Columns.Select(item => ffkTable.FindColumn(item));
+                ffkColumns.OrderBy(item => item.Name);
+                var ffkReferencedColumns = ffk.ReferencedColumns(table.DatabaseSchema).Select(item => ffkReferencedTable.FindColumn(item));
+
+                var withMethodSignature = CodeWriterUtils.GetWithMethodSignature(
+                    ffkReferencedTable,
+                    ffkTable,
+                    ffk,
+                    codeWriterSettings);
+
+                var propertyName = foreignKeyChild.Name;
+                var repositoryMethodNameForFfkTable = CodeWriterUtils.GetGetMethodName(ffkColumns, codeWriterSettings, false);
+                classBuilder.BeginNest($"public {withMethodSignature}");
+                var repositoryMethodCallParametersForFfkTable = new List<string>();
+                foreach (var ffkReferencedColumn in ffkReferencedColumns)
+                {
+                    var parameter = $"{CodeWriterUtils.GetPropertyNameForDatabaseColumn(ffkReferencedColumn)}";
+                    if (ffkReferencedColumn.Nullable && DataTypeWriter.FindDataType(ffkReferencedColumn).EndsWith("?"))
+                    {
+                        using (classBuilder.BeginNest($"if (!{parameter}.HasValue)"))
+                        {
+                            classBuilder.AppendLine($"{propertyName} = new List<{ffkTable.NetName}>();");
+                            classBuilder.AppendLine("return this;");
+                        }
+
+                        classBuilder.AppendLine("");
+                        parameter += ".Value";
+                    }
+
+                    repositoryMethodCallParametersForFfkTable.Add(parameter);
+                }
+
+                var repositoryMethodCallParametersForFfkTablePrinted = string.Join(", ", repositoryMethodCallParametersForFfkTable);
+                var fieldNameForFfkTableRepository = NameFixer.ToCamelCase(CodeWriterUtils.GetRepositoryImplementationName(foreignKeyChild));
+                classBuilder.AppendLine($"{propertyName} = _{fieldNameForFfkTableRepository}.{repositoryMethodNameForFfkTable}({repositoryMethodCallParametersForFfkTablePrinted});");
+                classBuilder.AppendLine("return this;");
+                classBuilder.EndNest();
+                classBuilder.AppendLine("");
+            }
+        }
+
         public void WriteWith(DatabaseTable foreignKeyChild)
         {
+            if (table.IsSharedPrimaryKey(foreignKeyChild))
+            {
+                WriteWithSingle(foreignKeyChild);
+                return;
+            }
+
             var ffks = CodeWriterUtils.GetWithForeignKeys(table, foreignKeyChild).ToList();
             foreach (var ffk in ffks)
             {
@@ -270,33 +324,27 @@ namespace DatabaseSchemaReader.CodeGen
 
         private void WriteForeignKeyCollectionProperties()
         {
-            var listType = "IEnumerable<";
+            var hasTablePerTypeInheritance = (table.ForeignKeyChildren.Count(fk => table.IsSharedPrimaryKey(fk)) > 1);
 
-            var hasTablePerTypeInheritance =
-                (table.ForeignKeyChildren.Count(fk => table.IsSharedPrimaryKey(fk)) > 1);
-
-            foreach (var foreignKey in table.ForeignKeyChildren)
+            foreach (var referencingTable in table.ForeignKeyChildren)
             {
-                if (foreignKey.IsManyToManyTable() && codeWriterSettings.CodeTarget == CodeTarget.PocoEntityCodeFirst)
+                if (referencingTable.IsManyToManyTable())
                 {
-                    WriteManyToManyCollection(foreignKey);
-                    continue;
-                }
-                if (table.IsSharedPrimaryKey(foreignKey))
-                {
-                    if (hasTablePerTypeInheritance)
-                        continue;
-                    //type and property name are the same
-                    classBuilder.AppendAutomaticProperty(foreignKey.NetName, foreignKey.NetName, true);
+                    WriteManyToManyCollection(referencingTable);
                     continue;
                 }
 
-                //the other table may have more than one fk pointing at this table
-                var fks = table.InverseForeignKeys(foreignKey);
-                foreach (var fk in fks)
+                if (table.IsSharedPrimaryKey(referencingTable))
                 {
-                    var propertyName = codeWriterSettings.Namer.ForeignKeyCollectionName(table.Name, foreignKey, fk);
-                    var dataType = listType + foreignKey.NetName + ">";
+                    classBuilder.AppendAutomaticProperty(referencingTable.NetName, referencingTable.Name, true);
+                    continue;
+                }
+
+                var foreignForeignKeys = table.InverseForeignKeys(referencingTable);
+                foreach (var ffk in foreignForeignKeys)
+                {
+                    var propertyName = codeWriterSettings.Namer.ForeignKeyCollectionName(table.Name, referencingTable, ffk);
+                    var dataType = $"IEnumerable<{referencingTable.NetName}>";
                     WriteForeignKeyChild(propertyName, dataType);
                     classBuilder.AppendLine("");
                 }
