@@ -102,7 +102,7 @@ namespace DatabaseSchemaReader.CodeGen
         public virtual string PrimaryKeyName(DatabaseColumn column)
         {
             var primaryKeyName = column.NetName;
-            if (column.IsPrimaryKey && column.IsForeignKey)
+            if (CodeWriterUtils.IsPrimaryKey(column) && column.IsForeignKey)
             {
                 //if it's a composite key as well, always write an Id version
                 var table = column.Table;
@@ -146,7 +146,7 @@ namespace DatabaseSchemaReader.CodeGen
             {
                 var columnName = foreignKey.Columns.Single();
                 var column = table.FindColumn(columnName);
-                if (!column.IsPrimaryKey)
+                if (!CodeWriterUtils.IsPrimaryKey(column))
                 {
                     propertyName = column.NetName;
                 }

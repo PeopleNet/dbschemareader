@@ -19,15 +19,18 @@ namespace DatabaseSchemaReader.CodeGen
             this.schema = schema;
         }
 
+        private void WriteTableOrView(DatabaseTable t)
+        {
+            table = t;
+            classBuilder = new ClassBuilder();
+            var implementationText = Write();
+            CodeWriterUtils.WriteClassFile(codeWriterSettings.OutputDirectory, CodeWriterUtils.GetRepositoryInterfaceName(table), implementationText);
+        }
+
         public void Execute()
         {
-            foreach (var t in schema.Tables)
-            {
-                table = t;
-                classBuilder = new ClassBuilder();
-                var implementationText = Write();
-                CodeWriterUtils.WriteClassFile(codeWriterSettings.OutputDirectory, CodeWriterUtils.GetRepositoryInterfaceName(table), implementationText);
-            }
+            schema.Tables.ForEach(WriteTableOrView);
+            schema.Views.ForEach(WriteTableOrView);
         }
 
         private string Write()
@@ -63,6 +66,11 @@ namespace DatabaseSchemaReader.CodeGen
 
         private void WriteDeletes()
         {
+            if (table is DatabaseView)
+            {
+                return;
+            }
+
             WriteDelete();
             WriteDeleteByCustomer();
             WriteDeleteUnique();
@@ -110,6 +118,11 @@ namespace DatabaseSchemaReader.CodeGen
 
         private void WriteUpdates()
         {
+            if (table is DatabaseView)
+            {
+                return;
+            }
+
             WriteUpdate();
             WriteUpdateByCustomer();
             WriteUpdateUnique();
@@ -226,6 +239,11 @@ namespace DatabaseSchemaReader.CodeGen
 
         private void WriteCreate()
         {
+            if (table is DatabaseView)
+            {
+                return;
+            }
+
             classBuilder.AppendLine($"{CodeWriterUtils.GetCreateMethodSignature(table, CodeWriterUtils.GetCreateMethodParameters(table))};");
         }
 

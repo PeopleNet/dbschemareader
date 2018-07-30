@@ -28,7 +28,7 @@ namespace DatabaseSchemaReader.CodeGen
 
 
 
-            if (column.IsPrimaryKey)
+            if (CodeWriterUtils.IsPrimaryKey(column))
             {
                 cb.AppendLine("[Key]");
             }

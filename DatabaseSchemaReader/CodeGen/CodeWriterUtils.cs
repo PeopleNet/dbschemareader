@@ -349,9 +349,19 @@ namespace DatabaseSchemaReader.CodeGen
             return GetMethodParametersForUniqueConstraint(table, codeWriterSettings, byCustomer);
         }
 
+        public static bool IsPrimaryKey(DatabaseColumn column)
+        {
+            if (column.IsPrimaryKey || (column.Name.EndsWith("ID") && column.Ordinal == 1 && column.Table is DatabaseView))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
         public static IEnumerable<DatabaseColumn> GetPrimaryKeyColumns(DatabaseTable table)
         {
-            return table.Columns.Where(c => c.IsPrimaryKey).ToList().OrderBy(item => item.Name);
+            return table.Columns.Where(IsPrimaryKey).ToList();
         }
 
         public static IEnumerable<IEnumerable<DatabaseColumn>> GetUniqueConstraintColumns(DatabaseTable table)
@@ -451,7 +461,7 @@ namespace DatabaseSchemaReader.CodeGen
 
         public static IEnumerable<Parameter> GetMethodParametersForPrimaryKeys(DatabaseTable table, CodeWriterSettings codeWriterSettings, bool byCustomer)
         {
-            var columns = table.Columns.Where(c => c.IsPrimaryKey).ToList().OrderBy(item => item.Name).ToList();
+            var columns = GetPrimaryKeyColumns(table);
             var methodParameters = GetMethodParametersForColumns(columns, codeWriterSettings);
             if (byCustomer)
             {

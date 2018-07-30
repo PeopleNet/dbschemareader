@@ -24,23 +24,18 @@ namespace DatabaseSchemaReader.CodeGen
             mappingNamer = new MappingNamer();
         }
 
+        private void WriteTableOrView(DatabaseTable t)
+        {
+            table = t;
+            classBuilder = new ClassBuilder();
+            var implementationText = Write();
+            CodeWriterUtils.WriteClassFile(codeWriterSettings.OutputDirectory, table.NetName, implementationText);
+        }
+
         public void Execute()
         {
-            foreach (var t in schema.Tables)
-            {
-                table = t;
-                classBuilder = new ClassBuilder();
-                var implementationText = Write();
-                CodeWriterUtils.WriteClassFile(codeWriterSettings.OutputDirectory, table.NetName, implementationText);
-            }
-
-            foreach (var v in schema.Views)
-            {
-                table = v;
-                classBuilder = new ClassBuilder();
-                var implementationText = Write();
-                CodeWriterUtils.WriteClassFile(codeWriterSettings.OutputDirectory, table.NetName, implementationText);
-            }
+            schema.Tables.ForEach(WriteTableOrView);
+            schema.Views.ForEach(WriteTableOrView);
         }
 
         public string Write()
@@ -135,7 +130,7 @@ namespace DatabaseSchemaReader.CodeGen
 
         private void WriteNonPrimaryKeyColumnProperties()
         {
-            foreach (var column in table.Columns.Where(c => !c.IsPrimaryKey))
+            foreach (var column in table.Columns.Where(c => !CodeWriterUtils.IsPrimaryKey(c)))
             {
                 WriteColumn(column);
             }
@@ -252,7 +247,7 @@ namespace DatabaseSchemaReader.CodeGen
 
         private void WritePrimaryKeyColumnProperties()
         {
-            foreach (var column in table.Columns.Where(c => c.IsPrimaryKey))
+            foreach (var column in CodeWriterUtils.GetPrimaryKeyColumns(table))
             {
                 WriteColumn(column, false);
             }
@@ -446,7 +441,7 @@ namespace DatabaseSchemaReader.CodeGen
                 var column = table.FindColumn(columnName);
                 if (column == null) continue;
                 //primary keys are already been written
-                if (!column.IsPrimaryKey)
+                if (!CodeWriterUtils.IsPrimaryKey(column))
                 {
                     WriteColumn(column, propertyName.Equals(column.NetName));
                 }

@@ -22,15 +22,18 @@ namespace DatabaseSchemaReader.CodeGen
             this.logicalDeleteColumns = logicalDeleteColumns;
         }
 
+        private void WriteTableOrView(DatabaseTable t)
+        {
+            table = t;
+            classBuilder = new ClassBuilder();
+            var implementationText = Write();
+            CodeWriterUtils.WriteClassFile(codeWriterSettings.OutputDirectory, CodeWriterUtils.GetRepositoryImplementationName(table), implementationText);
+        }
+
         public void Execute()
         {
-            foreach (var t in schema.Tables)
-            {
-                table = t;
-                classBuilder = new ClassBuilder();
-                var implementationText = Write();
-                CodeWriterUtils.WriteClassFile(codeWriterSettings.OutputDirectory, CodeWriterUtils.GetRepositoryImplementationName(table), implementationText);
-            }
+            schema.Tables.ForEach(WriteTableOrView);
+            schema.Views.ForEach(WriteTableOrView);
         }
 
         private string Write()
@@ -67,6 +70,11 @@ namespace DatabaseSchemaReader.CodeGen
 
         private void WriteDeletes()
         {
+            if (table is DatabaseView)
+            {
+                return;
+            }
+
             var isLogicalDelete = table.Columns.Any(c => logicalDeleteColumns.Contains(c.Name));
             WriteDelete(isLogicalDelete);
             WriteDeleteByCustomer(isLogicalDelete);
@@ -311,6 +319,11 @@ namespace DatabaseSchemaReader.CodeGen
 
         private void WriteUpdates()
         {
+            if (table is DatabaseView)
+            {
+                return;
+            }
+
             WriteUpdate();
             WriteUpdateByCustomer();
             WriteUpdateUnique();
@@ -788,6 +801,11 @@ namespace DatabaseSchemaReader.CodeGen
 
         private void WriteCreate()
         {
+            if (table is DatabaseView)
+            {
+                return;
+            }
+
             var methodParameters = CodeWriterUtils.GetCreateMethodParameters(table).ToList();
             WriteCreateMethodSummary(methodParameters);
             using (classBuilder.BeginNest($"public {CodeWriterUtils.GetCreateMethodSignature(table, methodParameters)}"))
