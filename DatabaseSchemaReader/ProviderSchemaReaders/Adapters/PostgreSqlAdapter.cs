@@ -97,6 +97,12 @@ namespace DatabaseSchemaReader.ProviderSchemaReaders.Adapters
             return views;
         }
 
+        public override IList<DatabaseColumn> ViewColumns(string viewName)
+        {
+            return new ViewColumns(Owner, viewName)
+                .Execute(ConnectionAdapter);
+        }
+
         public override IList<DatabaseFunction> Functions(string name)
         {
             return new Functions(Owner)

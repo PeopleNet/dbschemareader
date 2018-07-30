@@ -33,6 +33,14 @@ namespace DatabaseSchemaReader.CodeGen
                 var implementationText = Write();
                 CodeWriterUtils.WriteClassFile(codeWriterSettings.OutputDirectory, table.NetName, implementationText);
             }
+
+            foreach (var v in schema.Views)
+            {
+                table = v;
+                classBuilder = new ClassBuilder();
+                var implementationText = Write();
+                CodeWriterUtils.WriteClassFile(codeWriterSettings.OutputDirectory, table.NetName, implementationText);
+            }
         }
 
         public string Write()
