@@ -361,7 +361,7 @@ namespace DatabaseSchemaReader.CodeGen
 
         public static IEnumerable<DatabaseColumn> GetPrimaryKeyColumns(DatabaseTable table)
         {
-            return table.Columns.Where(IsPrimaryKey).ToList();
+            return table.Columns.Where(IsPrimaryKey).ToList().OrderBy(item => item.Name);
         }
 
         public static IEnumerable<IEnumerable<DatabaseColumn>> GetUniqueConstraintColumns(DatabaseTable table)
