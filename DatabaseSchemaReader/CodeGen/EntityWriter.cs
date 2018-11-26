@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
+
 using DatabaseSchemaReader.DataSchema;
 
 namespace DatabaseSchemaReader.CodeGen
@@ -48,6 +50,7 @@ namespace DatabaseSchemaReader.CodeGen
 
             classBuilder.AppendXmlSummary($"Class representing the {table.Name} table.");
             classBuilder.AppendLine($"[Table(\"\\\"{table.Name}\\\"\")]");
+            classBuilder.AppendLine("[Serializable]");
             using (classBuilder.BeginNest($"public partial class {table.NetName}"))
             {
                 WriteAllMembers();
@@ -65,6 +68,86 @@ namespace DatabaseSchemaReader.CodeGen
             WriteForeignKeyProperties();
             WriteForeignKeyCollectionProperties();
             WriteWiths();
+            WriteEquals();
+            WriteShallowCopy();
+        }
+
+        private void WriteShallowCopy()
+        {
+            classBuilder.BeginNest($"public {table.NetName} ShallowCopy()");
+            classBuilder.AppendLine($"return MemberwiseClone() as {table.NetName};");
+            classBuilder.EndNest();
+        }
+
+        private void WriteEquals()
+        {
+            WriteEqualsEntity();
+            WriteEqualsObject();
+            WriteGetHashCode();
+            WriteEqualsOperator();
+            WriteNotEqualsOperator();
+        }
+
+        private void WriteEqualsEntity()
+        {
+            classBuilder.BeginNest($"public bool Equals({table.NetName} entity)");
+            classBuilder.BeginNest("if (ReferenceEquals(entity, null))");
+            classBuilder.AppendLine("return false;");
+            classBuilder.EndNest();
+            classBuilder.BeginNest("if (ReferenceEquals(entity, this))");
+            classBuilder.AppendLine("return true;");
+            classBuilder.EndNest();
+            classBuilder.AppendLine(string.Empty);
+
+            var clauses = new List<string>();
+            foreach (var c in table.Columns)
+            {
+                var propertyName = CodeWriterUtils.GetPropertyNameForDatabaseColumn(c);
+                clauses.Add($"this.{propertyName}.Equals(entity.{propertyName})");
+            }
+
+            classBuilder.AppendLine($"return {string.Join(" && ", clauses)};");
+            classBuilder.EndNest();
+            classBuilder.AppendLine(string.Empty);
+        }
+
+        private void WriteEqualsObject()
+        {
+            classBuilder.BeginNest("public override bool Equals(object obj)");
+            classBuilder.AppendLine($"return Equals(obj as {table.NetName});");
+            classBuilder.EndNest();
+            classBuilder.AppendLine(string.Empty);
+        }
+
+        private void WriteGetHashCode()
+        {
+            classBuilder.BeginNest("public override int GetHashCode()");
+            var properties = new List<string>();
+            foreach (var c in table.Columns)
+            {
+                var propertyName = CodeWriterUtils.GetPropertyNameForDatabaseColumn(c);
+                properties.Add($"this.{propertyName}");
+            }
+
+            classBuilder.AppendLine($"return ({string.Join(", ", properties)}).GetHashCode();");
+            classBuilder.EndNest();
+            classBuilder.AppendLine(string.Empty);
+        }
+
+        private void WriteEqualsOperator()
+        {
+            classBuilder.BeginNest($"public static bool operator ==({table.NetName} left, {table.NetName} right)");
+            classBuilder.AppendLine($"return Equals(left, right);");
+            classBuilder.EndNest();
+            classBuilder.AppendLine(string.Empty);
+        }
+
+        private void WriteNotEqualsOperator()
+        {
+            classBuilder.BeginNest($"public static bool operator !=({table.NetName} left, {table.NetName} right)");
+            classBuilder.AppendLine($"return !(left == right);");
+            classBuilder.EndNest();
+            classBuilder.AppendLine(string.Empty);
         }
 
         private void WriteConstructorsAndFields()
@@ -85,17 +168,18 @@ namespace DatabaseSchemaReader.CodeGen
 
             foreach (var f in fields)
             {
+                classBuilder.AppendLine("[NonSerialized]");
                 classBuilder.AppendLine($"private {f.DataType} _{f.Name};");
             }
 
-            classBuilder.AppendLine("");
+            classBuilder.AppendLine(string.Empty);
         }
 
         private void WriteConstructor()
         {
             classBuilder.BeginNest($"public {table.NetName}()");
             classBuilder.EndNest();
-            classBuilder.AppendLine("");
+            classBuilder.AppendLine(string.Empty);
         }
 
         private void WriteConstructor(IEnumerable<Parameter> fields)
@@ -114,7 +198,7 @@ namespace DatabaseSchemaReader.CodeGen
                 }
             }
 
-            classBuilder.AppendLine("");
+            classBuilder.AppendLine(string.Empty);
         }
 
         private void WriteForeignKeyProperties()
@@ -189,7 +273,7 @@ namespace DatabaseSchemaReader.CodeGen
                             classBuilder.AppendLine("return this;");
                         }
 
-                        classBuilder.AppendLine("");
+                        classBuilder.AppendLine(string.Empty);
                         parameter += ".Value";
                     }
 
@@ -201,7 +285,7 @@ namespace DatabaseSchemaReader.CodeGen
                 classBuilder.AppendLine($"{propertyName} = _{fieldNameForFfkTableRepository}.{repositoryMethodNameForFfkTable}({repositoryMethodCallParametersForFfkTablePrinted});");
                 classBuilder.AppendLine("return this;");
                 classBuilder.EndNest();
-                classBuilder.AppendLine("");
+                classBuilder.AppendLine(string.Empty);
             }
         }
 
@@ -233,7 +317,7 @@ namespace DatabaseSchemaReader.CodeGen
                         classBuilder.AppendLine("return this;");
                     }
 
-                    classBuilder.AppendLine("");
+                    classBuilder.AppendLine(string.Empty);
                     parameter += ".Value";
                 }
 
@@ -250,7 +334,7 @@ namespace DatabaseSchemaReader.CodeGen
             classBuilder.AppendLine($"{propertyName} = _{fieldNameForFkTableRepository}.{methodName}({s});");
             classBuilder.AppendLine("return this;");
             classBuilder.EndNest();
-            classBuilder.AppendLine("");
+            classBuilder.AppendLine(string.Empty);
         }
 
         private void WritePrimaryKeyColumnProperties()
@@ -277,7 +361,7 @@ namespace DatabaseSchemaReader.CodeGen
                 classBuilder.AppendLine($"using {u};");
             }
 
-            classBuilder.AppendLine("");
+            classBuilder.AppendLine(string.Empty);
         }
 
         private void WriteForeignKeyCollectionProperties()
@@ -310,7 +394,7 @@ namespace DatabaseSchemaReader.CodeGen
                     var propertyName = codeWriterSettings.Namer.ForeignKeyCollectionName(table.Name, foreignKey, fk);
                     var dataType = listType + foreignKey.NetName + ">";
                     WriteForeignKeyChild(propertyName, dataType);
-                    classBuilder.AppendLine("");
+                    classBuilder.AppendLine(string.Empty);
                 }
             }
         }
@@ -375,7 +459,7 @@ namespace DatabaseSchemaReader.CodeGen
                     }
                 }
             }
-            classBuilder.AppendLine("");
+            classBuilder.AppendLine(string.Empty);
         }
 
         private void WriteColumn(DatabaseColumn column)
@@ -425,7 +509,7 @@ namespace DatabaseSchemaReader.CodeGen
             if (refTable == null)
             {
                 //we can't find the foreign key table, so just write the columns
-                WriteForeignKeyProperties(foreignKey, "");
+                WriteForeignKeyProperties(foreignKey, string.Empty);
                 return;
             }
 

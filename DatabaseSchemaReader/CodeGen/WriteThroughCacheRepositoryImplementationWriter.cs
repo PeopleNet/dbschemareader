@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace DatabaseSchemaReader.CodeGen
 {
-    public class RepositoryImplementationWriter
+    public class WriteThroughCacheRepositoryImplementationWriter
     {
         private DatabaseTable table;
         private ClassBuilder classBuilder;
@@ -17,7 +17,7 @@ namespace DatabaseSchemaReader.CodeGen
         private string _loggerFieldName = "_logger";
         private string _dbContextFieldName = "_dbContext";
 
-        public RepositoryImplementationWriter(DatabaseSchema schema, CodeWriterSettings codeWriterSettings, IEnumerable<string> logicalDeleteColumns)
+        public WriteThroughCacheRepositoryImplementationWriter(DatabaseSchema schema, CodeWriterSettings codeWriterSettings, IEnumerable<string> logicalDeleteColumns)
         {
             this.codeWriterSettings = codeWriterSettings;
             this.schema = schema;
@@ -48,9 +48,8 @@ namespace DatabaseSchemaReader.CodeGen
             var tableOrView = table is DatabaseView ? "view" : "table";
             var comment = $"Repository class for the {table.Name} {tableOrView}";
             var classDefinition = $"public partial class {CodeWriterUtils.GetRepositoryImplementationName(table)} : {CodeWriterUtils.GetRepositoryInterfaceName(table)}";
-            classBuilder.AppendXmlSummary(comment);
             classBuilder.BeginNest(classDefinition);
-            WriteAllMembers();
+            //WriteAllMembers();
             classBuilder.EndNest(); // class
             classBuilder.EndNest(); // namespace
             return classBuilder.ToString();
